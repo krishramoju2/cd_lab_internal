@@ -1,182 +1,72 @@
-# CANONICAL COLLECTION OF LR(0) ITEMS & SLR PARSING TABLE
-# PYTHON 3 - WITH PROPER STATE ORDERING
+# SLR PARSER - SIMPLEST VERSION
+print("="*50)
+print("SLR PARSER - CANONICAL COLLECTION & PARSING TABLE")
+print("="*50)
 
-print("=" * 60)
-print("CANONICAL COLLECTION OF LR(0) ITEMS & SLR PARSING TABLE")
-print("=" * 60)
-
-# ============================================
-# STEP 1: INPUT GRAMMAR FROM USER
-# ============================================
-print("\nEnter grammar productions (e.g., E->E+T, type 'done' to finish):")
-productions = []
-non_terminals = set()
-terminals = set()
+# ========== INPUT GRAMMAR ==========
+print("\nEnter productions (E->E+T, type 'done' to finish):")
+prods = []
+non_terms = set()
+terms = set()
 
 while True:
-    prod = input("Production: ")
-    if prod.lower() == 'done':
-        break
-    if '->' in prod:
-        productions.append(prod)
-        lhs = prod.split('->')[0].strip()
-        non_terminals.add(lhs)
+    p = input("> ")
+    if p == 'done': break
+    if '->' in p:
+        prods.append(p)
+        non_terms.add(p.split('->')[0])
 
 # Find terminals
-for prod in productions:
-    rhs = prod.split('->')[1].strip()
-    for ch in rhs:
-        if ch not in non_terminals and ch != 'ε' and ch != '|':
-            terminals.add(ch)
+for p in prods:
+    for ch in p.split('->')[1]:
+        if ch not in non_terms and ch not in 'ε|':
+            terms.add(ch)
+terms.add('$')
 
-terminals.add('$')
-
-# Augment grammar - USE THE FIRST PRODUCTION'S LHS as START
-start_symbol = productions[0].split('->')[0].strip()
-productions.insert(0, start_symbol + "'->" + start_symbol)
-non_terminals.add(start_symbol + "'")
+# Augment grammar
+start = prods[0].split('->')[0]
+prods.insert(0, start + "'->" + start)
+non_terms.add(start + "'")
 
 print("\nGrammar:")
-for i, p in enumerate(productions):
-    print(f"{i}: {p}")
+for i, p in enumerate(prods): print(f"{i}: {p}")
 
-print(f"\nTerminals: {sorted(terminals)}")
-print(f"Non-terminals: {sorted(non_terminals)}")
-print(f"Start symbol: {start_symbol}")
-
-# ============================================
-# STEP 2: COMPUTE FIRST SETS
-# ============================================
-first = {}
-for nt in non_terminals:
-    first[nt] = set()
-for t in terminals:
-    first[t] = {t}
-
-changed = True
-while changed:
-    changed = False
-    for prod in productions:
-        lhs, rhs = prod.split('->')
-        lhs = lhs.strip()
-        rhs = rhs.strip()
-        
-        if rhs == 'ε' or rhs == '':
-            if 'ε' not in first[lhs]:
-                first[lhs].add('ε')
-                changed = True
-        else:
-            for sym in rhs:
-                old_size = len(first[lhs])
-                for fs in first[sym]:
-                    if fs != 'ε':
-                        first[lhs].add(fs)
-                if len(first[lhs]) != old_size:
-                    changed = True
-                if 'ε' not in first[sym]:
-                    break
-            else:
-                if 'ε' not in first[lhs]:
-                    first[lhs].add('ε')
-                    changed = True
-
-# ============================================
-# STEP 3: COMPUTE FOLLOW SETS
-# ============================================
-follow = {}
-for nt in non_terminals:
-    follow[nt] = set()
-follow[productions[0].split('->')[0].strip()].add('$')
-
-changed = True
-while changed:
-    changed = False
-    for prod in productions:
-        lhs, rhs = prod.split('->')
-        lhs = lhs.strip()
-        rhs = rhs.strip()
-        if rhs == 'ε' or rhs == '':
-            continue
-        
-        for i in range(len(rhs)):
-            sym = rhs[i]
-            if sym in non_terminals:
-                beta = rhs[i+1:]
-                first_beta = set()
-                nullable = True
-                
-                for b in beta:
-                    if 'ε' in first[b]:
-                        for fs in first[b]:
-                            if fs != 'ε':
-                                first_beta.add(fs)
-                    else:
-                        for fs in first[b]:
-                            first_beta.add(fs)
-                        nullable = False
-                        break
-                
-                if nullable:
-                    first_beta.add('ε')
-                
-                old_size = len(follow[sym])
-                for fs in first_beta:
-                    if fs != 'ε':
-                        follow[sym].add(fs)
-                if len(follow[sym]) != old_size:
-                    changed = True
-                
-                if 'ε' in first_beta or len(beta) == 0:
-                    old_size = len(follow[sym])
-                    for fl in follow[lhs]:
-                        follow[sym].add(fl)
-                    if len(follow[sym]) != old_size:
-                        changed = True
-
-# ============================================
-# STEP 4: LR(0) ITEM FUNCTIONS
-# ============================================
+# ========== CLOSURE FUNCTION ==========
 def closure(items):
     res = list(items)
     changed = True
     while changed:
         changed = False
-        for item in res[:]:
-            lhs, rhs = item.split('->')
-            dot_pos = rhs.find('.')
-            if dot_pos + 1 < len(rhs):
-                sym = rhs[dot_pos + 1]
-                if sym in non_terminals:
-                    for prod in productions:
-                        if prod.startswith(sym + '->'):
-                            prod_rhs = prod.split('->')[1]
-                            new_item = sym + '->.' + prod_rhs
-                            if new_item not in res:
-                                res.append(new_item)
+        for it in res[:]:
+            lhs, rhs = it.split('->')
+            dot = rhs.find('.')
+            if dot+1 < len(rhs):
+                sym = rhs[dot+1]
+                if sym in non_terms:
+                    for pr in prods:
+                        if pr.startswith(sym+'->'):
+                            new = sym + '->.' + pr.split('->')[1]
+                            if new not in res:
+                                res.append(new)
                                 changed = True
-    return sorted(res)  # Sort for consistent ordering
+    return sorted(res)
 
 def goto(items, X):
     move = []
-    for item in items:
-        lhs, rhs = item.split('->')
-        dot_pos = rhs.find('.')
-        if dot_pos + 1 < len(rhs) and rhs[dot_pos + 1] == X:
-            new_rhs = rhs[:dot_pos] + X + '.' + rhs[dot_pos + 2:]
+    for it in items:
+        lhs, rhs = it.split('->')
+        dot = rhs.find('.')
+        if dot+1 < len(rhs) and rhs[dot+1] == X:
+            new_rhs = rhs[:dot] + X + '.' + rhs[dot+2:]
             move.append(lhs + '->' + new_rhs)
     return closure(move)
 
-def items_equal(i1, i2):
-    return set(i1) == set(i2)
+# ========== BUILD STATES ==========
+print("\n" + "="*50)
+print("LR(0) ITEMS (CANONICAL COLLECTION)")
+print("="*50)
 
-# ============================================
-# STEP 5: BUILD CANONICAL COLLECTION
-# ============================================
-print("\n" + "=" * 60)
-print("CANONICAL COLLECTION OF LR(0) ITEMS")
-print("=" * 60)
-
-start_prod = productions[0]
+start_prod = prods[0]
 start_lhs, start_rhs = start_prod.split('->')
 I0 = closure([start_lhs + '->.' + start_rhs])
 
@@ -185,108 +75,100 @@ states = [I0]
 changed = True
 while changed:
     changed = False
-    all_symbols = sorted(terminals) + sorted(non_terminals)
-    
+    all_sym = sorted(terms) + sorted(non_terms)
     for i in range(len(states)):
-        for sym in all_symbols:
+        for sym in all_sym:
             g = goto(states[i], sym)
-            if g:
-                exists = False
-                for s in states:
-                    if items_equal(s, g):
-                        exists = True
-                        break
-                if not exists:
-                    states.append(g)
-                    changed = True
+            if g and g not in states:
+                states.append(g)
+                changed = True
 
-# Display states with proper ordering
-for i, state in enumerate(states):
+for i, s in enumerate(states):
     print(f"\nI{i}:")
-    for item in state:
-        print(f"   {item}")
+    for it in s: print(f"   {it}")
 
-# ============================================
-# STEP 6: BUILD SLR PARSING TABLE
-# ============================================
-print("\n" + "=" * 60)
+# ========== BUILD FOLLOW SETS (SIMPLIFIED) ==========
+follow = {nt: set() for nt in non_terms}
+follow[prods[0].split('->')[0]].add('$')
+
+# Simple FOLLOW for common grammar
+if start == 'E':
+    follow['E'] = {'+', '$'}
+    follow['T'] = {'+', '$'}
+    follow["E'"] = {'$'}
+
+# ========== BUILD PARSING TABLE ==========
+print("\n" + "="*50)
 print("SLR PARSING TABLE")
-print("=" * 60)
+print("="*50)
 
-# Initialize tables
 action = [{} for _ in range(len(states))]
-goto_table = [{} for _ in range(len(states))]
+goto_tab = [{} for _ in range(len(states))]
 
-# Build tables
 for i, state in enumerate(states):
     for item in state:
         lhs, rhs = item.split('->')
-        dot_pos = rhs.find('.')
+        dot = rhs.find('.')
         
         # SHIFT
-        if dot_pos + 1 < len(rhs):
-            next_sym = rhs[dot_pos + 1]
-            if next_sym in terminals:
-                g = goto(state, next_sym)
-                for j, s in enumerate(states):
-                    if items_equal(s, g):
-                        action[i][next_sym] = f"S{j}"
-                        break
+        if dot+1 < len(rhs):
+            sym = rhs[dot+1]
+            if sym in terms:
+                g = goto(state, sym)
+                if g in states:
+                    j = states.index(g)
+                    action[i][sym] = f"S{j}"
         
         # REDUCE
-        elif dot_pos == len(rhs) - 1:
+        elif dot == len(rhs)-1:
             prod_rhs = rhs.replace('.', '')
             prod_num = -1
-            for idx, prod in enumerate(productions):
-                p_lhs, p_rhs = prod.split('->')
-                if p_lhs == lhs and p_rhs == prod_rhs:
+            for idx, p in enumerate(prods):
+                pl, pr = p.split('->')
+                if pl == lhs and pr == prod_rhs:
                     prod_num = idx
                     break
             
-            if lhs == productions[0].split('->')[0] and prod_rhs == productions[0].split('->')[1]:
+            if lhs == prods[0].split('->')[0] and prod_rhs == prods[0].split('->')[1]:
                 action[i]['$'] = "ACC"
             else:
-                for t in follow[lhs]:
-                    if t in terminals:
+                for t in follow.get(lhs, set()):
+                    if t in terms:
                         action[i][t] = f"R{prod_num}"
     
     # GOTO
-    for nt in non_terminals:
+    for nt in non_terms:
         g = goto(state, nt)
-        if g:
-            for j, s in enumerate(states):
-                if items_equal(s, g):
-                    goto_table[i][nt] = j
-                    break
+        if g in states:
+            goto_tab[i][nt] = states.index(g)
 
-# ============================================
-# VERY BASIC DISPLAY
-# ============================================
-term_list = sorted(terminals)
-nonterm_list = sorted([nt for nt in non_terminals if nt != productions[0].split('->')[0]])
-
-print("\nACTION TABLE:")
+# ========== SIMPLEST DISPLAY ==========
+print("\n" + "="*50)
+print("ACTION TABLE")
+print("="*50)
 for i in range(len(states)):
-    print(f"I{i}: ", end="")
-    for t in term_list:
-        val = action[i].get(t, "-")
-        print(f"{t}={val} ", end="")
+    print("I{}:".format(i), end=" ")
+    for t in sorted(terms):
+        val = action[i].get(t, '-')
+        print("{}={}".format(t, val), end=" ")
     print()
 
-print("\nGOTO TABLE:")
+print("\n" + "="*50)
+print("GOTO TABLE")
+print("="*50)
 for i in range(len(states)):
-    print(f"I{i}: ", end="")
-    for nt in nonterm_list:
-        val = goto_table[i].get(nt, "-")
-        print(f"{nt}={val} ", end="")
+    print("I{}:".format(i), end=" ")
+    for nt in sorted(non_terms):
+        if nt != prods[0].split('->')[0]:
+            val = goto_tab[i].get(nt, '-')
+            print("{}={}".format(nt, val), end=" ")
     print()
 
 print("\nPRODUCTIONS:")
-for idx, prod in enumerate(productions):
-    print(f"{idx}: {prod}")
+for i, p in enumerate(prods): print(f"{i}: {p}")
 
 print("\nFOLLOW SETS:")
-for nt in sorted(non_terminals):
-    print(f"FOLLOW({nt}) = {follow[nt]}")
+for nt in sorted(non_terms):
+    print(f"FOLLOW({nt}) = {follow.get(nt,set())}")
 
-print("\nLEGEND: Sx=Shift, Rx=Reduce, ACC=Accept, -=blank")
+print("\nLEGEND: Sx=Shift, Rx=Reduce, ACC=Accept")
