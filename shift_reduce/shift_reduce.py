@@ -1,12 +1,11 @@
-# SHIFT REDUCE PARSER - CORRECTED VERSION
-print("Enter grammar productions (E->E+E or E->id, type 'done' to finish):")
+# SHIFT REDUCE PARSER - SIMPLIFIED
+print("Enter grammar (E->E+E, type 'done' to finish):")
 grammar = {}
 while True:
-    prod = input("Production: ")
-    if prod.lower() == 'done': 
-        break
-    if '->' in prod:
-        lhs, rhs = prod.split('->')
+    p = input("> ")
+    if p == 'done': break
+    if '->' in p:
+        lhs, rhs = p.split('->')
         lhs = lhs.strip()
         if lhs not in grammar:
             grammar[lhs] = []
@@ -14,47 +13,63 @@ while True:
 
 print("\nGrammar:", grammar)
 
-def tokenize(s):
-    tokens = []
-    i = 0
-    while i < len(s):
-        if s[i].isalpha():
-            j = i
-            while j < len(s) and s[j].isalpha():
-                j += 1
-            tokens.append(s[i:j])
-            i = j
-        else:
-            tokens.append(s[i])
-            i += 1
-    return tokens
+# Pre-tokenize grammar RHS
+gram_tokens = {}
+for lhs, rhs_list in grammar.items():
+    gram_tokens[lhs] = []
+    for rhs in rhs_list:
+        # Simple tokenization for grammar
+        tokens = []
+        i = 0
+        while i < len(rhs):
+            if rhs[i].isalpha():
+                j = i
+                while j < len(rhs) and rhs[j].isalpha():
+                    j += 1
+                tokens.append(rhs[i:j])
+                i = j
+            else:
+                tokens.append(rhs[i])
+                i += 1
+        gram_tokens[lhs].append(tokens)
 
 while True:
     inp = input("\nEnter string (id+id, q to quit): ")
-    if inp == 'q': 
-        break
+    if inp == 'q': break
     
-    tokens = tokenize(inp)
+    # Tokenize input
+    tokens = []
+    i = 0
+    while i < len(inp):
+        if inp[i].isalpha():
+            j = i
+            while j < len(inp) and inp[j].isalpha():
+                j += 1
+            tokens.append(inp[i:j])
+            i = j
+        else:
+            tokens.append(inp[i])
+            i += 1
+    
     print("Tokens:", tokens)
     
     stack = []
-    ptr = 0
-    input_len = len(tokens)
+    pos = 0
+    n = len(tokens)
     
     print("\nStack          Input        Action")
     print("-" * 45)
     
     while True:
-        # Try to reduce first (before shifting)
+        # REDUCE
         reduced = False
-        for lhs, rhs_list in grammar.items():
+        for lhs, rhs_list in gram_tokens.items():
             for rhs in rhs_list:
-                rhs_tokens = tokenize(rhs)
-                if len(stack) >= len(rhs_tokens) and stack[-len(rhs_tokens):] == rhs_tokens:
-                    for _ in range(len(rhs_tokens)):
+                if len(stack) >= len(rhs) and stack[-len(rhs):] == rhs:
+                    for _ in range(len(rhs)):
                         stack.pop()
                     stack.append(lhs)
-                    print(str(stack) + "          " + str(tokens[ptr:]) + "          REDUCE " + lhs + "->" + rhs)
+                    print(str(stack) + "          " + str(tokens[pos:]) + "          REDUCE " + lhs)
                     reduced = True
                     break
             if reduced:
@@ -63,17 +78,17 @@ while True:
         if reduced:
             continue
         
-        # Check for accept
-        if len(stack) == 1 and stack[0] in grammar and ptr == input_len:
-            print(str(stack) + "          " + str(tokens[ptr:]) + "          ACCEPT")
-            print("\n ACCEPTED")
+        # ACCEPT
+        if len(stack) == 1 and stack[0] in grammar and pos == n:
+            print(str(stack) + "          " + str(tokens[pos:]) + "          ACCEPT")
+            print("\n✅ ACCEPTED")
             break
         
-        # Shift
-        if ptr < input_len:
-            stack.append(tokens[ptr])
-            ptr += 1
-            print(str(stack) + "          " + str(tokens[ptr:]) + "          SHIFT")
+        # SHIFT
+        if pos < n:
+            stack.append(tokens[pos])
+            pos += 1
+            print(str(stack) + "          " + str(tokens[pos:]) + "          SHIFT")
         else:
-            print("\n REJECTED")
+            print("\n❌ REJECTED")
             break
