@@ -1,6 +1,7 @@
 # ============================================
 # EXPERIMENT 4: INTERMEDIATE CODE GENERATION
 # Three Address Code (TAC) + Quadruples + Triples
+# MULTIPLE LINE INPUT VERSION
 # ============================================
 
 print("=" * 60)
@@ -22,33 +23,24 @@ def precedence(op):
 # STEP 2: INFIX TO POSTFIX CONVERSION
 # ============================================
 def infix_to_postfix(expression):
-    """Convert infix expression to postfix using Shunting Yard algorithm"""
     stack = []
     output = []
     
     for ch in expression:
-        # Operand (variable or number)
         if ch.isalnum():
             output.append(ch)
-        
-        # Left parenthesis
         elif ch == '(':
             stack.append(ch)
-        
-        # Right parenthesis
         elif ch == ')':
             while stack and stack[-1] != '(':
                 output.append(stack.pop())
-            stack.pop()  # Remove '('
-        
-        # Operator
+            stack.pop()
         else:
             while (stack and stack[-1] != '(' and 
                    precedence(stack[-1]) >= precedence(ch)):
                 output.append(stack.pop())
             stack.append(ch)
     
-    # Pop remaining operators
     while stack:
         output.append(stack.pop())
     
@@ -58,7 +50,6 @@ def infix_to_postfix(expression):
 # STEP 3: GENERATE THREE ADDRESS CODE (TAC)
 # ============================================
 def generate_tac(postfix):
-    """Generate Three Address Code from postfix expression"""
     stack = []
     temp_count = 1
     tac_instructions = []
@@ -67,12 +58,10 @@ def generate_tac(postfix):
         if token.isalnum():
             stack.append(token)
         else:
-            # Operator: pop two operands
             right = stack.pop()
             left = stack.pop()
             temp_var = f"t{temp_count}"
             temp_count += 1
-            
             instruction = f"{temp_var} = {left} {token} {right}"
             tac_instructions.append(instruction)
             stack.append(temp_var)
@@ -83,11 +72,9 @@ def generate_tac(postfix):
 # STEP 4: GENERATE QUADRUPLES
 # ============================================
 def generate_quadruples(tac_instructions):
-    """Convert TAC to quadruples (op, arg1, arg2, result)"""
     quadruples = []
     for instr in tac_instructions:
         parts = instr.split()
-        # parts = [result, '=', arg1, op, arg2]
         quadruple = (parts[3], parts[2], parts[4], parts[0])
         quadruples.append(quadruple)
     return quadruples
@@ -96,7 +83,6 @@ def generate_quadruples(tac_instructions):
 # STEP 5: GENERATE TRIPLES
 # ============================================
 def generate_triples(tac_instructions):
-    """Convert TAC to triples (op, arg1, arg2)"""
     triples = []
     for instr in tac_instructions:
         parts = instr.split()
@@ -105,39 +91,44 @@ def generate_triples(tac_instructions):
     return triples
 
 # ============================================
-# MAIN PROGRAM - RUN MULTIPLE EXPRESSIONS
+# MAIN PROGRAM - MULTIPLE EXPRESSIONS
 # ============================================
 while True:
     print("\n" + "-" * 40)
-    expr = input("Enter expression (a+b*c, q to quit): ")
+    n = int(input("Enter number of expressions (0 to quit): "))
     
-    if expr.lower() == 'q':
+    if n == 0:
         break
     
-    print(f"\n📌 INPUT: {expr}")
+    print("Enter expressions (one per line):")
+    expressions = []
+    for i in range(n):
+        expr = input(f"{i+1}: ")
+        expressions.append(expr)
     
-    # Step 1: Convert to Postfix
-    postfix = infix_to_postfix(expr)
-    postfix_str = ''.join(postfix)
-    print(f"\n📌 POSTFIX: {postfix_str}")
-    
-    # Step 2: Generate TAC
-    tac = generate_tac(postfix)
-    print(f"\n📌 THREE ADDRESS CODE (TAC):")
-    for line in tac:
-        print(f"     {line}")
-    
-    # Step 3: Generate Quadruples
-    quadruples = generate_quadruples(tac)
-    print(f"\n📌 QUADRUPLES (op, arg1, arg2, result):")
-    for i, quad in enumerate(quadruples, 1):
-        print(f"     {i}: {quad}")
-    
-    # Step 4: Generate Triples
-    triples = generate_triples(tac)
-    print(f"\n📌 TRIPLES (op, arg1, arg2):")
-    for i, trip in enumerate(triples):
-        print(f"     {i}: {trip}")
+    for idx, expr in enumerate(expressions, 1):
+        print(f"\n{'='*40}")
+        print(f"EXPRESSION {idx}: {expr}")
+        print(f"{'='*40}")
+        
+        postfix = infix_to_postfix(expr)
+        postfix_str = ''.join(postfix)
+        print(f"\n📌 POSTFIX: {postfix_str}")
+        
+        tac = generate_tac(postfix)
+        print(f"\n📌 THREE ADDRESS CODE (TAC):")
+        for line in tac:
+            print(f"     {line}")
+        
+        quadruples = generate_quadruples(tac)
+        print(f"\n📌 QUADRUPLES (op, arg1, arg2, result):")
+        for i, quad in enumerate(quadruples, 1):
+            print(f"     {i}: {quad}")
+        
+        triples = generate_triples(tac)
+        print(f"\n📌 TRIPLES (op, arg1, arg2):")
+        for i, trip in enumerate(triples):
+            print(f"     {i}: {trip}")
 
 print("\n" + "=" * 60)
 print("INTERMEDIATE CODE GENERATION COMPLETE")
